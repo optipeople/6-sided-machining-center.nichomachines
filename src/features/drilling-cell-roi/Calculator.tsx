@@ -2,12 +2,13 @@
 
 import {
   useCallback,
+  useEffect,
   useMemo,
   useRef,
   useState,
   type FormEvent,
 } from "react";
-import { ArrowLeft, ArrowRight, Check } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, Loader2 } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { PRODUCTS, type DrillingProduct } from "./products";
 import { SOLUTIONS, type SolutionVariant } from "./solutions";
@@ -80,14 +81,23 @@ export function DrillingCellRoiCalculator() {
   const [automationSelected, setAutomationSelected] = useState<Record<string, Set<string>>>({});
 
   const topRef = useRef<HTMLDivElement>(null);
+  const headingRef = useRef<HTMLHeadingElement>(null);
 
   const goTo = useCallback((next: Step) => {
     setStep(next);
-    // Smooth scroll to the top of the calculator card
+    // Smooth scroll to the top of the calculator card, then move focus for a11y
     requestAnimationFrame(() => {
       topRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      headingRef.current?.focus({ preventScroll: true });
     });
   }, []);
+
+  // Reset transient errors when leaving the contact step
+  useEffect(() => {
+    if (step !== 4) {
+      setFormError(null);
+    }
+  }, [step]);
 
   const toggleProduct = (id: string) => {
     setSelected((prev) => {
@@ -231,6 +241,15 @@ export function DrillingCellRoiCalculator() {
   const progressPct =
     step === 0 ? 0 : Math.round((Math.min(step, INPUT_STEPS) / INPUT_STEPS) * 100);
 
+  const totalUnitsPerDay = activeProducts.reduce(
+    (s, p) => s + (quantities[p.id] ?? 0),
+    0,
+  );
+  const step2NextDisabled = activeProducts.length === 0 || totalUnitsPerDay <= 0;
+  const step3NextDisabled = !selectedSolutionName;
+
+  const STEP_LABELS = ["Products", "Production", "Solution", "Contact"] as const;
+
   return (
     <div ref={topRef} className="scroll-mt-24 min-h-[600px]">
       {/* Progress + step dots */}
@@ -242,25 +261,38 @@ export function DrillingCellRoiCalculator() {
           />
         </div>
         <div className="mt-4 flex items-center gap-2">
-          {[0, 1, 2, 3, 4].map((i) => (
-            <span
-              key={i}
-              className={cn(
-                "h-2 w-2 rounded-full transition-colors",
-                i < step
-                  ? "bg-[var(--color-navy-500)]"
-                  : i === step
-                    ? "bg-[var(--color-tan-500)]"
-                    : "bg-[var(--color-paper-dark)]",
-              )}
-            />
-          ))}
+          {[1, 2, 3, 4].map((i) => {
+            const isDone = i < step;
+            const isCurrent = i === step;
+            const canJump = i < step; // only allow jumping back to completed steps
+            return (
+              <button
+                key={i}
+                type="button"
+                onClick={() => canJump && goTo(i as Step)}
+                disabled={!canJump}
+                aria-label={`Go to step ${i}: ${STEP_LABELS[i - 1]}`}
+                aria-current={isCurrent ? "step" : undefined}
+                className={cn(
+                  "h-2 rounded-full transition-all",
+                  isCurrent ? "w-6" : "w-2",
+                  isDone
+                    ? "bg-[var(--color-tan-500)] hover:bg-[var(--color-tan-300)]"
+                    : isCurrent
+                      ? "bg-[var(--color-tan-500)]"
+                      : "bg-[var(--color-paper-dark)]",
+                  !canJump && "cursor-default",
+                )}
+              />
+            );
+          })}
         </div>
       </div>
 
       {/* STEP 0 — Intro */}
       {step === 0 && (
         <StepShell
+          headingRef={headingRef}
           eyebrow="ROI Calculator"
           title={
             <>
@@ -294,6 +326,7 @@ export function DrillingCellRoiCalculator() {
       {/* STEP 1 — Product selection */}
       {step === 1 && (
         <StepShell
+          headingRef={headingRef}
           eyebrow="Step 1 of 4 — Products"
           title={
             <>
@@ -316,9 +349,10 @@ export function DrillingCellRoiCalculator() {
                   onClick={() => toggleProduct(p.id)}
                   aria-pressed={isSel}
                   className={cn(
-                    "group relative flex flex-col gap-3 rounded-lg border bg-[var(--color-paper)] p-4 text-left transition-colors",
+                    "group relative flex flex-col gap-3 rounded-lg border bg-[var(--color-paper)] p-4 text-left transition-all",
+                    "hover:shadow-md hover:-translate-y-0.5",
                     isSel
-                      ? "border-[var(--color-navy-900)] bg-[var(--color-paper)]"
+                      ? "border-[var(--color-navy-900)] bg-[var(--color-paper)] shadow-sm"
                       : "border-[var(--color-paper-dark)] hover:border-[var(--color-navy-500)]",
                   )}
                 >
@@ -354,13 +388,19 @@ export function DrillingCellRoiCalculator() {
             })}
           </div>
 
-          <NavRow onBack={() => goTo(0)} onNext={() => goTo(2)} nextDisabled={selected.size === 0} />
+          <NavRow
+            onBack={() => goTo(0)}
+            onNext={() => goTo(2)}
+            nextDisabled={selected.size === 0}
+            nextDisabledHint={selected.size === 0 ? "Pick at least one product" : undefined}
+          />
         </StepShell>
       )}
 
       {/* STEP 2 — Quantities + operators */}
       {step === 2 && (
         <StepShell
+          headingRef={headingRef}
           eyebrow="Step 2 of 4 — Production"
           title={
             <>
@@ -498,7 +538,14 @@ export function DrillingCellRoiCalculator() {
           <NavRow
             onBack={() => goTo(1)}
             onNext={() => goTo(3)}
-            nextDisabled={activeProducts.length === 0}
+            nextDisabled={step2NextDisabled}
+            nextDisabledHint={
+              activeProducts.length === 0
+                ? "Select at least one product"
+                : totalUnitsPerDay <= 0
+                  ? "Enter at least one unit per day"
+                  : undefined
+            }
           />
         </StepShell>
       )}
@@ -506,6 +553,7 @@ export function DrillingCellRoiCalculator() {
       {/* STEP 3 — Solutions */}
       {step === 3 && (
         <StepShell
+          headingRef={headingRef}
           eyebrow="Step 3 of 4 — Solution Proposals"
           title={
             <>
@@ -555,9 +603,10 @@ export function DrillingCellRoiCalculator() {
                   type="button"
                   onClick={() => setSelectedSolutionName(solution.name)}
                   className={cn(
-                    "relative flex flex-col rounded-xl border-2 p-4 text-left transition-colors",
+                    "relative flex flex-col rounded-xl border-2 p-4 text-left transition-all",
+                    "hover:shadow-md hover:-translate-y-0.5",
                     isSel
-                      ? "border-[var(--color-navy-900)] bg-[var(--color-paper)]"
+                      ? "border-[var(--color-navy-900)] bg-[var(--color-paper)] shadow-sm"
                       : "border-[var(--color-paper-dark)] bg-[var(--color-paper)] hover:border-[var(--color-navy-500)]",
                   )}
                 >
@@ -607,13 +656,19 @@ export function DrillingCellRoiCalculator() {
             </p>
           </div>
 
-          <NavRow onBack={() => goTo(2)} onNext={() => goTo(4)} />
+          <NavRow
+            onBack={() => goTo(2)}
+            onNext={() => goTo(4)}
+            nextDisabled={step3NextDisabled}
+            nextDisabledHint={step3NextDisabled ? "Select a solution to continue" : undefined}
+          />
         </StepShell>
       )}
 
       {/* STEP 4 — Contact */}
       {step === 4 && (
         <StepShell
+          headingRef={headingRef}
           eyebrow="Step 4 of 4 — Get in Touch"
           title={
             <>
@@ -630,8 +685,12 @@ export function DrillingCellRoiCalculator() {
               autoComplete="name"
               placeholder="Jane Doe"
               value={contact.name}
-              onChange={(v) => setContact((c) => ({ ...c, name: v }))}
+              onChange={(v) => {
+                setContact((c) => ({ ...c, name: v }));
+                if (errors.name) setErrors((e) => ({ ...e, name: false }));
+              }}
               invalid={!!errors.name}
+              errorMessage={errors.name ? "Please enter your name." : undefined}
             />
             <TextField
               id="contactEmail"
@@ -641,8 +700,17 @@ export function DrillingCellRoiCalculator() {
               autoComplete="email"
               placeholder="jane@company.com"
               value={contact.email}
-              onChange={(v) => setContact((c) => ({ ...c, email: v }))}
+              onChange={(v) => {
+                setContact((c) => ({ ...c, email: v }));
+                if (errors.email) setErrors((e) => ({ ...e, email: false }));
+              }}
+              onBlur={(v) => {
+                if (v.trim() && !emailOk(v.trim())) {
+                  setErrors((e) => ({ ...e, email: true }));
+                }
+              }}
               invalid={!!errors.email}
+              errorMessage={errors.email ? "Enter a valid email address." : undefined}
             />
             <TextField
               id="contactJob"
@@ -651,8 +719,12 @@ export function DrillingCellRoiCalculator() {
               autoComplete="organization-title"
               placeholder="Production Manager"
               value={contact.job}
-              onChange={(v) => setContact((c) => ({ ...c, job: v }))}
+              onChange={(v) => {
+                setContact((c) => ({ ...c, job: v }));
+                if (errors.job) setErrors((e) => ({ ...e, job: false }));
+              }}
               invalid={!!errors.job}
+              errorMessage={errors.job ? "Please enter your job title." : undefined}
             />
             <TextField
               id="contactCompany"
@@ -686,9 +758,18 @@ export function DrillingCellRoiCalculator() {
               <SecondaryButton type="button" onClick={() => goTo(3)}>
                 <ArrowLeft className="size-4" aria-hidden /> Back
               </SecondaryButton>
-              <PrimaryButton type="submit" disabled={submitting}>
-                {submitting ? "Sending…" : "Request proposal"}
-                {!submitting && <ArrowRight className="size-4" aria-hidden />}
+              <PrimaryButton type="submit" disabled={submitting} aria-busy={submitting || undefined}>
+                {submitting ? (
+                  <>
+                    <Loader2 className="size-4 animate-spin" aria-hidden />
+                    Sending…
+                  </>
+                ) : (
+                  <>
+                    Request proposal
+                    <ArrowRight className="size-4" aria-hidden />
+                  </>
+                )}
               </PrimaryButton>
             </div>
           </form>
@@ -698,6 +779,7 @@ export function DrillingCellRoiCalculator() {
       {/* STEP 5 — Thanks */}
       {step === 5 && (
         <StepShell
+          headingRef={headingRef}
           eyebrow="Submission Received"
           title={
             <>
@@ -741,16 +823,24 @@ function StepShell({
   title,
   description,
   children,
+  headingRef,
 }: {
   eyebrow: string;
   title: React.ReactNode;
   description: React.ReactNode;
   children: React.ReactNode;
+  headingRef?: React.Ref<HTMLHeadingElement>;
 }) {
   return (
     <div className="animate-[fadeUp_.35s_ease_forwards]">
       <p className="text-eyebrow text-[var(--color-tan-500)]">{eyebrow}</p>
-      <h2 className="mt-3 text-display-3 text-balance text-[var(--color-ink-900)]">{title}</h2>
+      <h2
+        ref={headingRef}
+        tabIndex={-1}
+        className="mt-3 text-display-3 text-balance text-[var(--color-ink-900)] outline-none"
+      >
+        {title}
+      </h2>
       <p className="mt-4 max-w-xl text-base leading-relaxed text-[var(--color-ink-500)]">
         {description}
       </p>
@@ -803,22 +893,27 @@ function TextField({
   label,
   value,
   onChange,
+  onBlur,
   required,
   type = "text",
   autoComplete,
   placeholder,
   invalid,
+  errorMessage,
 }: {
   id: string;
   label: string;
   value: string;
   onChange: (v: string) => void;
+  onBlur?: (v: string) => void;
   required?: boolean;
   type?: string;
   autoComplete?: string;
   placeholder?: string;
   invalid?: boolean;
+  errorMessage?: string;
 }) {
+  const errorId = `${id}-error`;
   return (
     <div className="flex flex-col gap-2">
       <label htmlFor={id} className="text-sm font-semibold text-[var(--color-ink-900)]">
@@ -830,17 +925,24 @@ function TextField({
         type={type}
         value={value}
         onChange={(e) => onChange(e.target.value)}
+        onBlur={onBlur ? (e) => onBlur(e.target.value) : undefined}
         autoComplete={autoComplete}
         placeholder={placeholder}
         aria-invalid={invalid || undefined}
+        aria-describedby={invalid && errorMessage ? errorId : undefined}
         className={cn(
           "w-full rounded-md border bg-[var(--color-paper)] px-3.5 py-2.5 text-[0.95rem] outline-none transition-colors",
           "focus:border-[var(--color-navy-900)] focus:ring-2 focus:ring-[var(--color-navy-900)]/15",
           invalid
-            ? "border-[#b3261e]"
+            ? "border-[#b3261e] focus:border-[#b3261e] focus:ring-[#b3261e]/15"
             : "border-[var(--color-paper-dark)]",
         )}
       />
+      {invalid && errorMessage ? (
+        <p id={errorId} className="text-xs text-[#b3261e]">
+          {errorMessage}
+        </p>
+      ) : null}
     </div>
   );
 }
@@ -875,9 +977,12 @@ function NumberInput({
         const n = parseFloat(e.target.value);
         onChange(Number.isFinite(n) ? n : 0);
       }}
+      onFocus={(e) => e.target.select()}
+      onWheel={(e) => (e.target as HTMLInputElement).blur()}
       className={cn(
         "rounded-md border border-[var(--color-paper-dark)] bg-[var(--color-paper)] px-3 py-2 text-right text-[0.95rem] font-medium text-[var(--color-ink-900)] outline-none transition-colors",
         "focus:border-[var(--color-navy-900)] focus:ring-2 focus:ring-[var(--color-navy-900)]/15",
+        "appearance-none [-moz-appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none",
         className,
       )}
     />
@@ -886,14 +991,17 @@ function NumberInput({
 
 function PrimaryButton({
   children,
+  type = "button",
   ...props
 }: React.ButtonHTMLAttributes<HTMLButtonElement>) {
   return (
     <button
+      type={type}
       {...props}
       className={cn(
-        "inline-flex h-11 items-center justify-center gap-2 rounded-md bg-[var(--color-navy-900)] px-5 text-[0.95rem] font-medium text-[var(--color-cream-50)] transition-colors",
-        "hover:bg-[var(--color-navy-700)] disabled:opacity-50 disabled:pointer-events-none",
+        "inline-flex h-11 items-center justify-center gap-2 rounded-md bg-[var(--color-navy-900)] px-5 text-[0.95rem] font-medium text-[var(--color-cream-50)] transition-all",
+        "hover:bg-[var(--color-navy-700)] hover:shadow-sm active:translate-y-px",
+        "disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-[var(--color-navy-900)] disabled:hover:shadow-none disabled:active:translate-y-0",
         props.className,
       )}
     >
@@ -904,14 +1012,17 @@ function PrimaryButton({
 
 function SecondaryButton({
   children,
+  type = "button",
   ...props
 }: React.ButtonHTMLAttributes<HTMLButtonElement>) {
   return (
     <button
+      type={type}
       {...props}
       className={cn(
         "inline-flex h-11 items-center justify-center gap-2 rounded-md border border-[var(--color-navy-900)]/20 bg-transparent px-5 text-[0.95rem] font-medium text-[var(--color-ink-900)] transition-colors",
-        "hover:border-[var(--color-navy-900)]/60 disabled:opacity-50 disabled:pointer-events-none",
+        "hover:border-[var(--color-navy-900)]/60 hover:bg-[var(--color-paper-dark)]/40",
+        "disabled:opacity-50 disabled:cursor-not-allowed",
         props.className,
       )}
     >
@@ -954,19 +1065,29 @@ function NavRow({
   onBack,
   onNext,
   nextDisabled,
+  nextDisabledHint,
 }: {
   onBack: () => void;
   onNext: () => void;
   nextDisabled?: boolean;
+  nextDisabledHint?: string;
 }) {
   return (
     <div className="mt-8 flex flex-wrap items-center gap-3">
       <SecondaryButton onClick={onBack}>
         <ArrowLeft className="size-4" aria-hidden /> Back
       </SecondaryButton>
-      <PrimaryButton onClick={onNext} disabled={nextDisabled}>
+      <PrimaryButton
+        onClick={onNext}
+        disabled={nextDisabled}
+        title={nextDisabled ? nextDisabledHint : undefined}
+        aria-label={nextDisabled && nextDisabledHint ? nextDisabledHint : undefined}
+      >
         Next <ArrowRight className="size-4" aria-hidden />
       </PrimaryButton>
+      {nextDisabled && nextDisabledHint ? (
+        <p className="text-xs text-[var(--color-slate-500)]">{nextDisabledHint}</p>
+      ) : null}
     </div>
   );
 }
