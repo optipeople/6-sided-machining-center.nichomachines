@@ -19,7 +19,12 @@ export const SubmissionSchema = z.object({
     .min(1)
     .max(50),
   operators: z.number().min(0).max(1000),
-  investment: z.number().min(0).max(100_000_000),
+  selectedSolution: z
+    .object({
+      name: z.string().min(1).max(160),
+      automationOptions: z.array(z.string().min(1).max(160)).max(20),
+    })
+    .nullable(),
   // honeypot — must be empty
   website: z.string().max(0).optional(),
 });

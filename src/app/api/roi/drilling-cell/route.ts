@@ -2,6 +2,42 @@ import { NextResponse } from "next/server";
 import { Resend } from "resend";
 import { site } from "@/lib/site";
 import { SubmissionSchema } from "@/features/drilling-cell-roi/schema";
+import { SOLUTIONS } from "@/features/drilling-cell-roi/solutions";
+
+type SelectedSolutionSummary = {
+  name: string;
+  automationOptions: Array<{ name: string; priceEur: number }>;
+  baseInvestmentEur: number;
+  automationInvestmentEur: number;
+  totalInvestmentEur: number;
+};
+
+function summarizeSelection(
+  selected: { name: string; automationOptions: string[] } | null,
+): SelectedSolutionSummary | null {
+  if (!selected) return null;
+  const solution = SOLUTIONS.find((s) => s.name === selected.name);
+  if (!solution) {
+    return {
+      name: selected.name,
+      automationOptions: selected.automationOptions.map((name) => ({ name, priceEur: 0 })),
+      baseInvestmentEur: 0,
+      automationInvestmentEur: 0,
+      totalInvestmentEur: 0,
+    };
+  }
+  const picked = (solution.automationOptions ?? []).filter((o) =>
+    selected.automationOptions.includes(o.name),
+  );
+  const automationInvestmentEur = picked.reduce((sum, o) => sum + o.priceEur, 0);
+  return {
+    name: solution.name,
+    automationOptions: picked.map((o) => ({ name: o.name, priceEur: o.priceEur })),
+    baseInvestmentEur: solution.investmentEur,
+    automationInvestmentEur,
+    totalInvestmentEur: solution.investmentEur + automationInvestmentEur,
+  };
+}
 
 const fmtEur = new Intl.NumberFormat("de-DE", {
   style: "currency",
@@ -46,6 +82,8 @@ export async function POST(request: Request) {
     0,
   );
 
+  const selection = summarizeSelection(data.selectedSolution);
+
   const productRowsText = data.products
     .map(
       (p) =>
@@ -65,6 +103,22 @@ export async function POST(request: Request) {
     )
     .join("");
 
+  const selectionText = selection
+    ? [
+        ``,
+        `Selected solution`,
+        `  Name:                ${selection.name}`,
+        `  Base investment:     ${fmtEur.format(selection.baseInvestmentEur)}`,
+        selection.automationOptions.length > 0
+          ? `  Automation add-ons:\n${selection.automationOptions
+              .map((o) => `    • ${o.name} (${fmtEur.format(o.priceEur)})`)
+              .join("\n")}`
+          : `  Automation add-ons:  none`,
+        `  Automation total:    ${fmtEur.format(selection.automationInvestmentEur)}`,
+        `  Total investment:    ${fmtEur.format(selection.totalInvestmentEur)}`,
+      ].join("\n")
+    : `\nSelected solution: (none)`;
+
   const text = [
     `New 6-Side Machining Cell ROI submission`,
     ``,
@@ -77,7 +131,7 @@ export async function POST(request: Request) {
     `Production`,
     `  Operators today:     ${data.operators}`,
     `  Total units / day:   ${totalUnitsPerDay}`,
-    `  Capital investment:  ${fmtEur.format(data.investment)}`,
+    selectionText,
     ``,
     `Products (${data.products.length})`,
     productRowsText,
@@ -107,8 +161,29 @@ export async function POST(request: Request) {
       <table style="width:100%;border-collapse:collapse;margin-bottom:20px;">
         <tr><td style="padding:4px 0;color:#5a7c9a;width:200px;font-size:13px;">Operators today</td><td style="padding:4px 0;font-size:14px;color:#0f1115;">${data.operators}</td></tr>
         <tr><td style="padding:4px 0;color:#5a7c9a;font-size:13px;">Total units / day</td><td style="padding:4px 0;font-size:14px;color:#0f1115;">${totalUnitsPerDay.toLocaleString("en-US")}</td></tr>
-        <tr><td style="padding:4px 0;color:#5a7c9a;font-size:13px;">Capital investment</td><td style="padding:4px 0;font-size:14px;color:#0f1115;">${escapeHtml(fmtEur.format(data.investment))}</td></tr>
       </table>
+
+      <h3 style="margin:24px 0 8px;color:#0e2238;font-size:15px;border-bottom:2px solid #0e2238;padding-bottom:4px;">Selected solution</h3>
+      ${
+        selection
+          ? `<table style="width:100%;border-collapse:collapse;margin-bottom:20px;">
+        <tr><td style="padding:4px 0;color:#5a7c9a;width:200px;font-size:13px;">Solution</td><td style="padding:4px 0;font-size:14px;color:#0f1115;font-weight:600;">${escapeHtml(selection.name)}</td></tr>
+        <tr><td style="padding:4px 0;color:#5a7c9a;font-size:13px;">Base investment</td><td style="padding:4px 0;font-size:14px;color:#0f1115;">${escapeHtml(fmtEur.format(selection.baseInvestmentEur))}</td></tr>
+        <tr><td style="padding:4px 0;color:#5a7c9a;font-size:13px;vertical-align:top;">Automation add-ons</td><td style="padding:4px 0;font-size:14px;color:#0f1115;">${
+          selection.automationOptions.length > 0
+            ? selection.automationOptions
+                .map(
+                  (o) =>
+                    `<div>• ${escapeHtml(o.name)} <span style="color:#5a7c9a;">(${escapeHtml(fmtEur.format(o.priceEur))})</span></div>`,
+                )
+                .join("")
+            : `<span style="color:#5a7c9a;">none</span>`
+        }</td></tr>
+        <tr><td style="padding:4px 0;color:#5a7c9a;font-size:13px;">Automation total</td><td style="padding:4px 0;font-size:14px;color:#0f1115;">${escapeHtml(fmtEur.format(selection.automationInvestmentEur))}</td></tr>
+        <tr><td style="padding:4px 0;color:#5a7c9a;font-size:13px;font-weight:600;">Total investment</td><td style="padding:4px 0;font-size:14px;color:#0f1115;font-weight:600;">${escapeHtml(fmtEur.format(selection.totalInvestmentEur))}</td></tr>
+      </table>`
+          : `<p style="margin:4px 0 20px;font-size:13px;color:#5a7c9a;">(no solution selected)</p>`
+      }
 
       <h3 style="margin:24px 0 8px;color:#0e2238;font-size:15px;border-bottom:2px solid #0e2238;padding-bottom:4px;">Products (${data.products.length})</h3>
       <table style="width:100%;border-collapse:collapse;">
