@@ -1,0 +1,131 @@
+@import "tailwindcss";
+
+@theme {
+  /* NichoMachines palette — orange/black/neutral */
+  --color-navy-950: #da5f06;
+  --color-navy-900: #da5f06;
+  --color-navy-700: #b84f00;
+  --color-navy-500: #e8e8e8;
+  --color-slate-500: #666666;
+
+  --color-tan-500: #da5f06;
+  --color-tan-300: #f08040;
+  --color-beige-200: #e8e8e8;
+
+  --color-cream-50: #f5f5f5;
+  --color-paper: #ffffff;
+  --color-paper-dark: #e8e8e8;
+
+  --color-ink-900: #0a0a0a;
+  --color-ink-700: #2a2a2a;
+  --color-ink-500: #555555;
+  --color-ink-300: #999999;
+
+  --font-sans: var(--font-inter-tight), ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-display: var(--font-inter-tight), ui-sans-serif, system-ui, sans-serif;
+
+  --radius-xs: 0.125rem;
+  --radius-sm: 0.25rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+  --radius-xl: 1rem;
+
+  --container-narrow: 64rem;
+  --container-default: 80rem;
+  --container-wide: 90rem;
+}
+
+@layer base {
+  :root {
+    color-scheme: light;
+  }
+
+  html {
+    scroll-behavior: smooth;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  body {
+    background-color: var(--color-cream-50);
+    color: var(--color-ink-700);
+    font-family: var(--font-sans);
+    font-feature-settings: "ss01", "cv11";
+  }
+
+  ::selection {
+    background-color: var(--color-tan-500);
+    color: #ffffff;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    color: var(--color-ink-900);
+    font-family: var(--font-display);
+    font-weight: 600;
+    letter-spacing: -0.02em;
+  }
+
+  a {
+    color: inherit;
+    text-decoration: none;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-tan-500);
+    outline-offset: 2px;
+    border-radius: 2px;
+  }
+
+  input, textarea, select, button {
+    font: inherit;
+    color: inherit;
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  .text-pretty {
+    text-wrap: pretty;
+  }
+
+  .text-display-3 {
+    font-size: clamp(1.75rem, 3vw, 2.75rem);
+    line-height: 1.1;
+    letter-spacing: -0.025em;
+    font-weight: 600;
+  }
+
+  .text-eyebrow {
+    font-size: 0.75rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: var(--color-slate-500);
+  }
+}
+
+@keyframes fadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
