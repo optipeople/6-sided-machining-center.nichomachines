@@ -548,6 +548,21 @@ export function DrillingCellRoiCalculator() {
           </FieldRow>
 
           <FieldRow
+            label="Country"
+            hint="Used to estimate local labour cost in the business case."
+          >
+            <select
+              value={country}
+              onChange={(e) => setCountry(e.target.value as CountryCode)}
+              className="rounded-md border border-[var(--color-paper-dark)] bg-[var(--color-paper)] px-3 py-2 text-[0.95rem] font-medium text-[var(--color-ink-900)] outline-none transition-colors focus:border-[var(--color-navy-900)] focus:ring-2 focus:ring-[var(--color-navy-900)]/15"
+            >
+              {COUNTRIES.map((c) => (
+                <option key={c.code} value={c.code}>{c.name}</option>
+              ))}
+            </select>
+          </FieldRow>
+
+          <FieldRow
             label="Available shifts"
             hint="How many production shifts per day can a future machine run?"
           >
@@ -569,21 +584,6 @@ export function DrillingCellRoiCalculator() {
                 </button>
               ))}
             </div>
-          </FieldRow>
-
-          <FieldRow
-            label="Country"
-            hint="Used to estimate local labour cost in the business case."
-          >
-            <select
-              value={country}
-              onChange={(e) => setCountry(e.target.value as CountryCode)}
-              className="rounded-md border border-[var(--color-paper-dark)] bg-[var(--color-paper)] px-3 py-2 text-[0.95rem] font-medium text-[var(--color-ink-900)] outline-none transition-colors focus:border-[var(--color-navy-900)] focus:ring-2 focus:ring-[var(--color-navy-900)]/15"
-            >
-              {COUNTRIES.map((c) => (
-                <option key={c.code} value={c.code}>{c.name}</option>
-              ))}
-            </select>
           </FieldRow>
 
           <div className="mt-3 rounded-lg border border-[var(--color-paper-dark)] bg-[var(--color-paper)] px-5 py-4">
