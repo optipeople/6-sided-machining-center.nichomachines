@@ -64,13 +64,12 @@ function calcSolution(
   const capacityUtilPct = (weeklyMachineHours / availableWeeklyHours) * 100;
 
   const annualMachineHours = weeklyMachineHours * 46;
-  const annualCurrentHours = operatorHoursPerWeek * 46;
-  const annualMachineOperatorHours = effectiveOperators * 1660;
-  const annualHoursFreed = Math.max(0, annualCurrentHours - annualMachineOperatorHours);
-  const annualSavingsEur = annualHoursFreed * eurPerHour;
+  const annualCurrentCost = operatorHoursPerWeek * 46 * eurPerHour;
+  const annualFutureCost = weeklyMachineHours * effectiveOperators * 46 * eurPerHour;
+  const annualSavingsEur = Math.max(0, annualCurrentCost - annualFutureCost);
   const paybackYears = annualSavingsEur > 0 ? totalInvestment / annualSavingsEur : Infinity;
 
-  return { oee, effectiveOperators, totalInvestment, weeklyMachineHours, annualMachineHours, capacityUtilPct, annualHoursFreed, annualSavingsEur, paybackYears };
+  return { oee, effectiveOperators, totalInvestment, weeklyMachineHours, annualMachineHours, capacityUtilPct, annualSavingsEur, paybackYears };
 }
 
 type Contact = { name: string; email: string; job: string; company: string };
