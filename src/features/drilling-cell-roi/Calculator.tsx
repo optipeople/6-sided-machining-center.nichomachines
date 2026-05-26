@@ -17,8 +17,18 @@ type Step = 0 | 1 | 2 | 3 | 4 | 5;
 const INPUT_STEPS = 5; // 0..4 inclusive
 
 const WORKING_DAYS = 220;
-const OPERATOR_EUR_PER_HOUR = 35;
 const SHIFT_MINUTES = 440;
+
+const COUNTRIES = [
+  { code: "DK", name: "Denmark",    eurPerHour: 33.5 },
+  { code: "SE", name: "Sweden",     eurPerHour: 30.0 },
+  { code: "NO", name: "Norway",     eurPerHour: 48.0 },
+  { code: "FI", name: "Finland",    eurPerHour: 28.0 },
+  { code: "EE", name: "Estonia",    eurPerHour:  8.5 },
+  { code: "LV", name: "Latvia",     eurPerHour:  6.5 },
+  { code: "LT", name: "Lithuania",  eurPerHour:  7.5 },
+] as const;
+type CountryCode = (typeof COUNTRIES)[number]["code"];
 
 const SOLUTION_LABELS = [
   { label: "Conservative choice",       badge: "bg-[var(--color-paper-dark)] text-[var(--color-ink-900)]" },
@@ -30,8 +40,9 @@ function calcSolution(
   s: SolutionVariant,
   products: DrillingProduct[],
   quantities: Record<string, number>,
-  operators: number,
+  operatorHoursPerWeek: number,
   selectedAutoNames: Set<string>,
+  eurPerHour: number,
 ) {
   const selectedOptions = (s.automationOptions ?? []).filter((o) => selectedAutoNames.has(o.name));
   const oeeBoost = selectedOptions.reduce((sum, o) => sum + o.oeeBoostPct, 0);
@@ -49,11 +60,13 @@ function calcSolution(
   const capacityUtilPct = (dailyMachineHours / (SHIFT_MINUTES / 60)) * 100;
 
   const annualMachineHours = dailyMachineHours * WORKING_DAYS;
-  const operatorsFreed = Math.max(0, operators - effectiveOperators);
-  const annualSavingsEur = operatorsFreed * 1660 * OPERATOR_EUR_PER_HOUR;
+  const annualCurrentHours = operatorHoursPerWeek * 46;
+  const annualMachineOperatorHours = effectiveOperators * 1660;
+  const annualHoursFreed = Math.max(0, annualCurrentHours - annualMachineOperatorHours);
+  const annualSavingsEur = annualHoursFreed * eurPerHour;
   const paybackYears = annualSavingsEur > 0 ? totalInvestment / annualSavingsEur : Infinity;
 
-  return { oee, effectiveOperators, totalInvestment, annualMachineHours, capacityUtilPct, operatorsFreed, annualSavingsEur, paybackYears };
+  return { oee, effectiveOperators, totalInvestment, annualMachineHours, capacityUtilPct, annualHoursFreed, annualSavingsEur, paybackYears };
 }
 
 type Contact = { name: string; email: string; job: string; company: string };
@@ -64,7 +77,7 @@ export function DrillingCellRoiCalculator() {
   const [step, setStep] = useState<Step>(0);
   const [selected, setSelected] = useState<Set<string>>(() => new Set());
   const [quantities, setQuantities] = useState<Record<string, number>>({});
-  const [operators, setOperators] = useState<number>(2);
+  const [operatorHoursPerWeek, setOperatorHoursPerWeek] = useState<number>(40);
   const [contact, setContact] = useState<Contact>({
     name: "",
     email: "",
@@ -79,6 +92,10 @@ export function DrillingCellRoiCalculator() {
   const [submitting, setSubmitting] = useState(false);
   const [selectedSolutionName, setSelectedSolutionName] = useState<string | null>(null);
   const [automationSelected, setAutomationSelected] = useState<Record<string, Set<string>>>({});
+  const [country, setCountry] = useState<CountryCode>("DK");
+  const [availableShifts, setAvailableShifts] = useState<1 | 2 | 3>(1);
+
+  const eurPerHour = COUNTRIES.find((c) => c.code === country)!.eurPerHour;
 
   const topRef = useRef<HTMLDivElement>(null);
   const headingRef = useRef<HTMLHeadingElement>(null);
@@ -128,24 +145,27 @@ export function DrillingCellRoiCalculator() {
     const noAuto = new Set<string>();
     const withMetrics = SOLUTIONS.map((s) => ({
       solution: s,
-      m: calcSolution(s, activeProducts, quantities, operators, noAuto),
+      m: calcSolution(s, activeProducts, quantities, operatorHoursPerWeek, noAuto, eurPerHour),
     }));
 
-    // Feasible = capacity utilisation ≤ 200 %
-    const feasible = withMetrics.filter((w) => w.m.capacityUtilPct <= 200);
+    // Feasible = fits within available shifts
+    const feasible = withMetrics.filter((w) => w.m.capacityUtilPct <= availableShifts * 100);
     const pool = feasible.length > 0 ? feasible : withMetrics;
 
+    // Conservative: cheapest within available shifts
     const byInvestment = [...pool].sort((a, b) => a.solution.investmentEur - b.solution.investmentEur);
+    // Best fit: lowest payback within available shifts
     const byPayback = [...pool].sort((a, b) => {
       if (!Number.isFinite(a.m.paybackYears)) return 1;
       if (!Number.isFinite(b.m.paybackYears)) return -1;
       return a.m.paybackYears - b.m.paybackYears;
     });
-    const byUtil = [...withMetrics].sort((a, b) => a.m.capacityUtilPct - b.m.capacityUtilPct);
+    // Growth: highest capacity utilisation within available shifts
+    const byUtilDesc = [...pool].sort((a, b) => b.m.capacityUtilPct - a.m.capacityUtilPct);
 
     const conservative = byInvestment[0];
     const bestFit = byPayback[0];
-    const growth = byUtil[0];
+    const growth = byUtilDesc[0];
 
     // Accumulate all earned labels per solution name
     const labelMap = new Map<string, Array<{ label: string; badge: string }>>();
@@ -167,7 +187,7 @@ export function DrillingCellRoiCalculator() {
       result.push({ solution: item.solution, labels: labelMap.get(item.solution.name) ?? [] });
     });
     return result;
-  }, [activeProducts, quantities, operators]);
+  }, [activeProducts, quantities, operatorHoursPerWeek, eurPerHour, availableShifts]);
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -197,7 +217,8 @@ export function DrillingCellRoiCalculator() {
         size: p.size,
         unitsPerDay: quantities[p.id] ?? 0,
       })),
-      operators,
+      operatorHoursPerWeek,
+      availableShifts,
       selectedSolution: selectedSolutionName
         ? {
             name: selectedSolutionName,
@@ -230,7 +251,9 @@ export function DrillingCellRoiCalculator() {
   const resetForm = () => {
     setAll(true);
     setQuantities({});
-    setOperators(2);
+    setOperatorHoursPerWeek(40);
+    setCountry("DK");
+    setAvailableShifts(1);
     setContact({ name: "", email: "", job: "", company: "" });
     setErrors({});
     setFormError(null);
@@ -245,7 +268,7 @@ export function DrillingCellRoiCalculator() {
     (s, p) => s + (quantities[p.id] ?? 0),
     0,
   );
-  const step2NextDisabled = activeProducts.length === 0 || totalUnitsPerDay <= 0;
+  const step2NextDisabled = activeProducts.length === 0 || totalUnitsPerDay <= 0 || operatorHoursPerWeek <= 0;
   const step3NextDisabled = !selectedSolutionName;
 
   const STEP_LABELS = ["Products", "Production", "Solution", "Contact"] as const;
@@ -506,18 +529,57 @@ export function DrillingCellRoiCalculator() {
           )}
 
           <FieldRow
-            label="Number of operators today"
-            hint="How many employees currently perform the drilling manually?"
-            unit="persons"
+            label="Operator hours per week"
+            hint="Total hours per week spent on drilling operations today, across all operators."
+            unit="hrs / week"
           >
             <NumberInput
-              value={operators}
+              value={operatorHoursPerWeek}
               min={0}
-              max={1000}
+              max={10000}
               step={0.5}
-              onChange={setOperators}
+              onChange={setOperatorHoursPerWeek}
               className="w-28"
             />
+          </FieldRow>
+
+          <FieldRow
+            label="Available shifts"
+            hint="How many production shifts per day can a future machine run?"
+          >
+            <div className="flex overflow-hidden rounded-md border border-[var(--color-paper-dark)]">
+              {([1, 2, 3] as const).map((s) => (
+                <button
+                  key={s}
+                  type="button"
+                  onClick={() => setAvailableShifts(s)}
+                  className={cn(
+                    "flex h-10 w-12 items-center justify-center text-sm font-semibold transition-colors",
+                    s > 1 && "border-l border-[var(--color-paper-dark)]",
+                    availableShifts === s
+                      ? "bg-[var(--color-navy-900)] text-[var(--color-cream-50)]"
+                      : "bg-[var(--color-paper)] text-[var(--color-ink-900)] hover:bg-[var(--color-paper-dark)]",
+                  )}
+                >
+                  {s}
+                </button>
+              ))}
+            </div>
+          </FieldRow>
+
+          <FieldRow
+            label="Country"
+            hint="Used to estimate local labour cost in the business case."
+          >
+            <select
+              value={country}
+              onChange={(e) => setCountry(e.target.value as CountryCode)}
+              className="rounded-md border border-[var(--color-paper-dark)] bg-[var(--color-paper)] px-3 py-2 text-[0.95rem] font-medium text-[var(--color-ink-900)] outline-none transition-colors focus:border-[var(--color-navy-900)] focus:ring-2 focus:ring-[var(--color-navy-900)]/15"
+            >
+              {COUNTRIES.map((c) => (
+                <option key={c.code} value={c.code}>{c.name}</option>
+              ))}
+            </select>
           </FieldRow>
 
           <div className="mt-3 rounded-lg border border-[var(--color-paper-dark)] bg-[var(--color-paper)] px-5 py-4">
@@ -526,12 +588,12 @@ export function DrillingCellRoiCalculator() {
             </p>
             <div className="mt-2 flex items-baseline gap-2">
               <span className="text-2xl font-bold text-[var(--color-ink-900)]">
-                {(operators * 1660).toLocaleString("da-DK")}
+                {(operatorHoursPerWeek * 46).toLocaleString("da-DK")}
               </span>
               <span className="text-sm text-[var(--color-slate-500)]">hours / year</span>
             </div>
             <p className="mt-1 text-xs text-[var(--color-slate-500)]">
-              {operators.toLocaleString("da-DK")} operators × 1,660 hours
+              {operatorHoursPerWeek.toLocaleString("da-DK")} hrs/week × 46 weeks
             </p>
           </div>
 
@@ -544,7 +606,9 @@ export function DrillingCellRoiCalculator() {
                 ? "Select at least one product"
                 : totalUnitsPerDay <= 0
                   ? "Enter at least one unit per day"
-                  : undefined
+                  : operatorHoursPerWeek <= 0
+                    ? "Enter operator hours per week"
+                    : undefined
             }
           />
         </StepShell>
@@ -565,7 +629,7 @@ export function DrillingCellRoiCalculator() {
           {/* Data summary */}
           <div className="mb-6 rounded-lg border border-[var(--color-paper-dark)] bg-[var(--color-paper)] p-4">
             <p className="text-xs font-semibold uppercase tracking-wider text-[var(--color-slate-500)]">Your data</p>
-            <div className="mt-3 grid grid-cols-3 gap-3">
+            <div className="mt-3 grid grid-cols-4 gap-3">
               <div>
                 <p className="text-xs text-[var(--color-slate-500)]">Products</p>
                 <p className="text-sm font-semibold text-[var(--color-ink-900)]">{activeProducts.length} selected</p>
@@ -577,8 +641,12 @@ export function DrillingCellRoiCalculator() {
                 </p>
               </div>
               <div>
-                <p className="text-xs text-[var(--color-slate-500)]">Operators today</p>
-                <p className="text-sm font-semibold text-[var(--color-ink-900)]">{operators.toLocaleString("en")}</p>
+                <p className="text-xs text-[var(--color-slate-500)]">Operator hrs / week</p>
+                <p className="text-sm font-semibold text-[var(--color-ink-900)]">{operatorHoursPerWeek.toLocaleString("en")}</p>
+              </div>
+              <div>
+                <p className="text-xs text-[var(--color-slate-500)]">Available shifts</p>
+                <p className="text-sm font-semibold text-[var(--color-ink-900)]">{availableShifts}</p>
               </div>
             </div>
           </div>
@@ -588,7 +656,7 @@ export function DrillingCellRoiCalculator() {
             {displayedSolutions.map(({ solution, labels }) => {
               const isSel = selectedSolutionName === solution.name;
               const selAuto = automationSelected[solution.name] ?? new Set<string>();
-              const m = calcSolution(solution, activeProducts, quantities, operators, selAuto);
+              const m = calcSolution(solution, activeProducts, quantities, operatorHoursPerWeek, selAuto, eurPerHour);
               const toggleAuto = (optName: string, checked: boolean) => {
                 setAutomationSelected((prev) => {
                   const next = new Set(prev[solution.name] ?? []);
