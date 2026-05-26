@@ -410,39 +410,47 @@ export async function POST(request: Request) {
 
   const submittedAt = new Date().toLocaleString("da-DK", { timeZone: "Europe/Copenhagen", dateStyle: "full", timeStyle: "short" });
 
-  const html = buildHtml({ ...data, submittedAt });
+  const reportHtml = buildHtml({ ...data, submittedAt });
 
   const countryInfo = COUNTRIES[data.country] ?? { name: data.country, eurPerHour: 0 };
   const totalUnitsPerWeek = data.products.reduce((s, p) => s + p.unitsPerWeek, 0);
+  const selName = data.selectedSolution?.name ?? "(ingen løsning valgt)";
 
-  // Plain-text fallback
-  const text = [
-    `6-sided machining center ROI — salgsrapport`,
+  // Simple email body — full report is attached
+  const bodyHtml = `<!DOCTYPE html>
+<html lang="da"><head><meta charset="utf-8"></head>
+<body style="margin:0;padding:24px 12px;background:#f5f0e8;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;">
+<div style="background:#fff;border-radius:8px;padding:28px 32px;max-width:560px;margin:0 auto;color:#1a1d22;">
+  <h2 style="margin:0 0 16px;font-size:18px;color:#0e2238;">Ny ROI-forespørgsel — 6-sided machining center</h2>
+  <table style="border-collapse:collapse;width:100%;margin-bottom:20px;">
+    <tr><td style="color:#5a7c9a;font-size:12px;width:160px;padding:4px 12px 4px 0;">Navn</td><td style="font-size:14px;padding:4px 0;">${e(data.contact.name)}</td></tr>
+    <tr><td style="color:#5a7c9a;font-size:12px;padding:4px 12px 4px 0;">Email</td><td style="font-size:14px;padding:4px 0;"><a href="mailto:${e(data.contact.email)}" style="color:#0e2238;">${e(data.contact.email)}</a></td></tr>
+    <tr><td style="color:#5a7c9a;font-size:12px;padding:4px 12px 4px 0;">Stilling</td><td style="font-size:14px;padding:4px 0;">${e(data.contact.job)}</td></tr>
+    ${data.contact.company ? `<tr><td style="color:#5a7c9a;font-size:12px;padding:4px 12px 4px 0;">Virksomhed</td><td style="font-size:14px;padding:4px 0;">${e(data.contact.company)}</td></tr>` : ""}
+    <tr><td style="color:#5a7c9a;font-size:12px;padding:4px 12px 4px 0;">Land</td><td style="font-size:14px;padding:4px 0;">${e(countryInfo.name)}</td></tr>
+    <tr><td style="color:#5a7c9a;font-size:12px;padding:4px 12px 4px 0;">Enheder / uge</td><td style="font-size:14px;padding:4px 0;">${totalUnitsPerWeek.toLocaleString("da-DK")}</td></tr>
+    <tr><td style="color:#5a7c9a;font-size:12px;padding:4px 12px 4px 0;">Valgt løsning</td><td style="font-size:14px;font-weight:600;padding:4px 0;">${e(selName)}</td></tr>
+  </table>
+  <p style="margin:0;font-size:12px;color:#9aa5b4;">Den detaljerede salgsrapport med beregninger er vedhæftet som HTML-fil.<br>Indsendt: ${e(submittedAt)}</p>
+</div>
+</body></html>`;
+
+  const bodyText = [
+    `Ny ROI-forespørgsel — 6-sided machining center`,
     `Indsendt: ${submittedAt}`,
     ``,
-    `KONTAKT`,
-    `  Navn:       ${data.contact.name}`,
-    `  Email:      ${data.contact.email}`,
-    `  Stilling:   ${data.contact.job}`,
-    `  Virksomhed: ${data.contact.company ?? "-"}`,
+    `Navn:          ${data.contact.name}`,
+    `Email:         ${data.contact.email}`,
+    `Stilling:      ${data.contact.job}`,
+    `Virksomhed:    ${data.contact.company ?? "-"}`,
+    `Land:          ${countryInfo.name}`,
+    `Enheder / uge: ${totalUnitsPerWeek.toLocaleString("da-DK")}`,
+    `Valgt løsning: ${selName}`,
     ``,
-    `PRODUKTION`,
-    `  Land:                  ${countryInfo.name} (${data.country})`,
-    `  Timeløn:               ${fmtEur.format(countryInfo.eurPerHour)} / time`,
-    `  Operatørtimer / uge:   ${fmtNum(data.operatorHoursPerWeek, 1)}`,
-    `  Tilgængelige skift:    ${data.availableShifts} (${SHIFT_WEEKLY_HOURS[data.availableShifts]} t/uge)`,
-    `  Enheder / uge i alt:   ${totalUnitsPerWeek.toLocaleString("da-DK")}`,
-    ``,
-    `PRODUKTER`,
-    ...data.products.map((p) => `  • ${p.id.padEnd(28)} ${p.unitsPerWeek.toString().padStart(6)} enheder/uge   ${p.size}`),
-    ``,
-    `VALGT LØSNING: ${data.selectedSolution?.name ?? "(ingen)"}`,
-    ...(data.selectedSolution?.automationOptions.length
-      ? data.selectedSolution.automationOptions.map((o) => `  + ${o}`)
-      : []),
-    ``,
-    `Se HTML-versionen for fuld beregningsgennemgang.`,
+    `Den detaljerede salgsrapport med beregninger er vedhæftet.`,
   ].join("\n");
+
+  const attachmentFilename = "roi-rapport-" + data.contact.name.toLowerCase().replace(/[^a-z0-9]+/g, "-") + ".html";
 
   if (!apiKey) {
     console.info("[roi] received (no Resend key configured)", { contact: data.contact });
@@ -456,8 +464,14 @@ export async function POST(request: Request) {
       to,
       replyTo: data.contact.email,
       subject: "ROI-forespørgsel: " + data.contact.name + (data.contact.company ? " — " + data.contact.company : ""),
-      text,
-      html,
+      text: bodyText,
+      html: bodyHtml,
+      attachments: [
+        {
+          filename: attachmentFilename,
+          content: Buffer.from(reportHtml, "utf-8"),
+        },
+      ],
     });
     if (result.error) {
       console.error("[roi] resend rejected send", result.error, { from, to });
