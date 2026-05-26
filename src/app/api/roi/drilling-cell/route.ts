@@ -193,7 +193,7 @@ function buildHtml(data: {
     ${sectionHeading("Kontakt")}
     <table style="border-collapse:collapse;width:100%;">
       ${row("Navn", e(data.contact.name))}
-      ${row("Email", `<a href="mailto:${e(data.contact.email)}" style="color:#0e2238;">${e(data.contact.email)}</a>`)}
+      ${row("Email", '<a href="mailto:' + e(data.contact.email) + '" style="color:#0e2238;">' + e(data.contact.email) + "</a>")}
       ${row("Stilling", e(data.contact.job))}
       ${data.contact.company ? row("Virksomhed", e(data.contact.company)) : ""}
     </table>`;
@@ -211,11 +211,11 @@ function buildHtml(data: {
   const productionSection = `
     ${sectionHeading("Produktionsdata")}
     <table style="border-collapse:collapse;width:100%;margin-bottom:12px;">
-      ${row("Land", e(`${countryInfo.name} (${data.country})`))}
-      ${row("Timelønssats", e(`${fmtEur.format(eurPerHour)} / time`))}
-      ${row("Operatørtimer i dag", e(`${fmtNum(data.operatorHoursPerWeek, 1)} timer / uge`))}
-      ${row("Nuværende årlig operatøromkostning", `<strong>${e(fmtEur.format(data.operatorHoursPerWeek * WORKING_WEEKS * eurPerHour))}</strong> <span style="color:#7a8a9a;font-size:12px;">(${fmtNum(data.operatorHoursPerWeek, 1)} × ${WORKING_WEEKS} uger × ${fmtEur.format(eurPerHour)})</span>`))}
-      ${row("Tilgængelige skift", e(`${data.availableShifts} skift → ${availableWeeklyHours} timer / uge`))}
+      ${row("Land", e(countryInfo.name + " (" + data.country + ")"))}
+      ${row("Timels&oslash;nssats", e(fmtEur.format(eurPerHour) + " / time"))}
+      ${row("Operat&oslash;rtimer i dag", e(fmtNum(data.operatorHoursPerWeek, 1) + " timer / uge"))}
+      ${row('Nuværende årlig operatøromkostning', '<strong>' + e(fmtEur.format(data.operatorHoursPerWeek * WORKING_WEEKS * eurPerHour)) + '</strong> <span style="color:#7a8a9a;font-size:12px;">(' + fmtNum(data.operatorHoursPerWeek, 1) + ' x ' + WORKING_WEEKS + ' uger x ' + e(fmtEur.format(eurPerHour)) + ')</span>')}
+      ${row("Tilg&aelig;ngelige skift", e(data.availableShifts + " skift " + String.fromCharCode(8594) + " " + availableWeeklyHours + " timer / uge"))}
       ${row("Samlede enheder / uge", e(totalUnitsPerWeek.toLocaleString("da-DK")))}
     </table>
     <table style="border-collapse:collapse;width:100%;">
@@ -265,7 +265,7 @@ function buildHtml(data: {
           <div style="font-size:14px;font-weight:700;color:#0e2238;">${e(s.name)}</div>
           <div style="font-size:12px;color:#7a8a9a;margin:2px 0 6px;">${e(s.description)}</div>
           ${feasibleChip} ${labelChips}
-          ${isSelected ? `<span style="${CSS.chip}background:#dbeafe;color:#1e40af;">&#10003; Kundens valg</span>` : ""}
+          ${isSelected ? '<span style="' + CSS.chip + 'background:#dbeafe;color:#1e40af;">&#10003; Kundens valg</span>' : ""}
         </td>
       </tr>
       <tr style="${rowBg}">
@@ -316,7 +316,7 @@ function buildHtml(data: {
       </tr>
       <tr style="${rowBg}border-bottom:3px solid #e8e0d0;">
         <td style="padding:4px 10px 12px 10px;font-size:12px;color:#5a7c9a;vertical-align:top;">Tilbagebetalingstid</td>
-        <td style="padding:4px 0 12px;font-size:14px;font-weight:700;color:#0e2238;">${isFinite(m.paybackYears) ? `${fmtNum(m.paybackYears)} år` : "—"}</td>
+        <td style="padding:4px 0 12px;font-size:14px;font-weight:700;color:#0e2238;">${isFinite(m.paybackYears) ? fmtNum(m.paybackYears) + " år" : "—"}</td>
       </tr>`;
   }).join("");
 
@@ -333,13 +333,13 @@ function buildHtml(data: {
     selectionSection = `
       ${sectionHeading("Kundens valgte l&#248;sning")}
       <table style="border-collapse:collapse;width:100%;">
-        ${row("L&#248;sning", `<strong>${e(selectedSol.name)}</strong>`)}
+        ${row("L&#248;sning", "<strong>" + e(selectedSol.name) + "</strong>")}
         ${row("Basis investering", e(fmtEur.format(selectedSol.investmentEur)))}
         ${row("Automatiseringstilkøb", selectedAutoOptions.length > 0
-          ? selectedAutoOptions.map((o) => `${e(o.name)} <span style="color:#7a8a9a;">(${fmtEur.format(o.priceEur)})</span>`).join("<br>")
+          ? selectedAutoOptions.map((o) => e(o.name) + ' <span style="color:#7a8a9a;">(' + fmtEur.format(o.priceEur) + ")</span>").join("<br>")
           : '<span style="color:#7a8a9a;">ingen</span>')}
         ${row("Automatisering i alt", e(fmtEur.format(selectedAutoTotal)))}
-        ${row("<strong>Samlet investering</strong>", `<strong style="font-size:15px;">${e(fmtEur.format(selectedTotal))}</strong>`)}
+        ${row("<strong>Samlet investering</strong>", '<strong style="font-size:15px;">' + e(fmtEur.format(selectedTotal)) + "</strong>")}
       </table>`;
   } else {
     selectionSection = `
@@ -366,6 +366,21 @@ function buildHtml(data: {
   </div>
 </body>
 </html>`;
+}
+
+// ── preview (dev only) ────────────────────────────────────────────────────────
+
+export async function GET() {
+  const html = buildHtml({
+    contact: { name: "Lars Andersen", email: "lars@kabinetteknik.dk", job: "Produktionschef", company: "Kabinetteknik A/S" },
+    products: [{ id: "Hinge Door", name: "", size: "702 × 368 × 17 mm", unitsPerWeek: 1750 }],
+    operatorHoursPerWeek: 120,
+    availableShifts: 1,
+    country: "DK",
+    selectedSolution: { name: "Single Machine - Double Side Drilling", automationOptions: [] },
+    submittedAt: "mandag den 26. maj 2026 kl. 10.34",
+  });
+  return new Response(html, { headers: { "Content-Type": "text/html; charset=utf-8" } });
 }
 
 // ── route handler ─────────────────────────────────────────────────────────────
@@ -440,7 +455,7 @@ export async function POST(request: Request) {
       from,
       to,
       replyTo: data.contact.email,
-      subject: `ROI-forespørgsel: ${data.contact.name}${data.contact.company ? ` — ${data.contact.company}` : ""}`,
+      subject: "ROI-forespørgsel: " + data.contact.name + (data.contact.company ? " — " + data.contact.company : ""),
       text,
       html,
     });
