@@ -17,7 +17,7 @@ type Step = 0 | 1 | 2 | 3 | 4 | 5;
 const INPUT_STEPS = 5; // 0..4 inclusive
 
 const WORKING_DAYS = 220;
-const SHIFT_MINUTES = 440;
+const SHIFT_WEEKLY_HOURS: Record<1 | 2 | 3, number> = { 1: 37, 2: 71, 3: 101 };
 
 const COUNTRIES = [
   { code: "DK", name: "Denmark",    eurPerHour: 33.5 },
@@ -39,10 +39,11 @@ const SOLUTION_LABELS = [
 function calcSolution(
   s: SolutionVariant,
   products: DrillingProduct[],
-  quantities: Record<string, number>,
+  quantities: Record<string, number>, // units per week
   operatorHoursPerWeek: number,
   selectedAutoNames: Set<string>,
   eurPerHour: number,
+  availableShifts: 1 | 2 | 3,
 ) {
   const selectedOptions = (s.automationOptions ?? []).filter((o) => selectedAutoNames.has(o.name));
   const oeeBoost = selectedOptions.reduce((sum, o) => sum + o.oeeBoostPct, 0);
@@ -53,20 +54,23 @@ function calcSolution(
   const effectiveOperators = Math.max(0, s.operators - operatorReduction);
   const totalInvestment = s.investmentEur + automationPrice;
 
+  // quantities are per week — divide by 5 to get daily for machine time calc
   const rawDailyHours = products.reduce((sum, p) => {
-    return sum + ((quantities[p.id] ?? 0) * (s.processingTimeSec[p.id] ?? 0)) / 3600;
+    return sum + (((quantities[p.id] ?? 0) / 5) * (s.processingTimeSec[p.id] ?? 0)) / 3600;
   }, 0);
   const dailyMachineHours = rawDailyHours / (oee / 100);
-  const capacityUtilPct = (dailyMachineHours / (SHIFT_MINUTES / 60)) * 100;
+  const weeklyMachineHours = dailyMachineHours * 5;
+  const availableWeeklyHours = SHIFT_WEEKLY_HOURS[availableShifts];
+  const capacityUtilPct = (weeklyMachineHours / availableWeeklyHours) * 100;
 
-  const annualMachineHours = dailyMachineHours * WORKING_DAYS;
+  const annualMachineHours = weeklyMachineHours * 46;
   const annualCurrentHours = operatorHoursPerWeek * 46;
   const annualMachineOperatorHours = effectiveOperators * 1660;
   const annualHoursFreed = Math.max(0, annualCurrentHours - annualMachineOperatorHours);
   const annualSavingsEur = annualHoursFreed * eurPerHour;
   const paybackYears = annualSavingsEur > 0 ? totalInvestment / annualSavingsEur : Infinity;
 
-  return { oee, effectiveOperators, totalInvestment, annualMachineHours, capacityUtilPct, annualHoursFreed, annualSavingsEur, paybackYears };
+  return { oee, effectiveOperators, totalInvestment, weeklyMachineHours, annualMachineHours, capacityUtilPct, annualHoursFreed, annualSavingsEur, paybackYears };
 }
 
 type Contact = { name: string; email: string; job: string; company: string };
@@ -145,11 +149,11 @@ export function DrillingCellRoiCalculator() {
     const noAuto = new Set<string>();
     const withMetrics = SOLUTIONS.map((s) => ({
       solution: s,
-      m: calcSolution(s, activeProducts, quantities, operatorHoursPerWeek, noAuto, eurPerHour),
+      m: calcSolution(s, activeProducts, quantities, operatorHoursPerWeek, noAuto, eurPerHour, availableShifts),
     }));
 
-    // Feasible = fits within available shifts
-    const feasible = withMetrics.filter((w) => w.m.capacityUtilPct <= availableShifts * 100);
+    // Feasible = weekly machine hours fit within available shift hours
+    const feasible = withMetrics.filter((w) => w.m.capacityUtilPct <= 100);
     const pool = feasible.length > 0 ? feasible : withMetrics;
 
     // Conservative: cheapest within available shifts
@@ -264,11 +268,11 @@ export function DrillingCellRoiCalculator() {
   const progressPct =
     step === 0 ? 0 : Math.round((Math.min(step, INPUT_STEPS) / INPUT_STEPS) * 100);
 
-  const totalUnitsPerDay = activeProducts.reduce(
+  const totalUnitsPerWeek = activeProducts.reduce(
     (s, p) => s + (quantities[p.id] ?? 0),
     0,
   );
-  const step2NextDisabled = activeProducts.length === 0 || totalUnitsPerDay <= 0 || operatorHoursPerWeek <= 0;
+  const step2NextDisabled = activeProducts.length === 0 || totalUnitsPerWeek <= 0 || operatorHoursPerWeek <= 0;
   const step3NextDisabled = !selectedSolutionName;
 
   const STEP_LABELS = ["Products", "Production", "Solution", "Contact"] as const;
@@ -468,7 +472,7 @@ export function DrillingCellRoiCalculator() {
                         htmlFor={`qty-${p.id}`}
                         className="text-eyebrow text-[var(--color-slate-500)]"
                       >
-                        Units / day
+                        Units / week
                       </label>
                       <NumberInput
                         id={`qty-${p.id}`}
@@ -490,7 +494,7 @@ export function DrillingCellRoiCalculator() {
                       <th className="w-[110px] pb-3" />
                       <th className="pb-3 text-eyebrow">Product</th>
                       <th className="pb-3 text-eyebrow">Size</th>
-                      <th className="pb-3 text-right text-eyebrow">Units / day</th>
+                      <th className="pb-3 text-right text-eyebrow">Units / week</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -604,8 +608,8 @@ export function DrillingCellRoiCalculator() {
             nextDisabledHint={
               activeProducts.length === 0
                 ? "Select at least one product"
-                : totalUnitsPerDay <= 0
-                  ? "Enter at least one unit per day"
+                : totalUnitsPerWeek <= 0
+                  ? "Enter at least one unit per week"
                   : operatorHoursPerWeek <= 0
                     ? "Enter operator hours per week"
                     : undefined
@@ -635,7 +639,7 @@ export function DrillingCellRoiCalculator() {
                 <p className="text-sm font-semibold text-[var(--color-ink-900)]">{activeProducts.length} selected</p>
               </div>
               <div>
-                <p className="text-xs text-[var(--color-slate-500)]">Units / day</p>
+                <p className="text-xs text-[var(--color-slate-500)]">Units / week</p>
                 <p className="text-sm font-semibold text-[var(--color-ink-900)]">
                   {activeProducts.reduce((s, p) => s + (quantities[p.id] ?? 0), 0).toLocaleString("en")}
                 </p>
@@ -656,7 +660,7 @@ export function DrillingCellRoiCalculator() {
             {displayedSolutions.map(({ solution, labels }) => {
               const isSel = selectedSolutionName === solution.name;
               const selAuto = automationSelected[solution.name] ?? new Set<string>();
-              const m = calcSolution(solution, activeProducts, quantities, operatorHoursPerWeek, selAuto, eurPerHour);
+              const m = calcSolution(solution, activeProducts, quantities, operatorHoursPerWeek, selAuto, eurPerHour, availableShifts);
               const toggleAuto = (optName: string, checked: boolean) => {
                 setAutomationSelected((prev) => {
                   const next = new Set(prev[solution.name] ?? []);
@@ -697,7 +701,7 @@ export function DrillingCellRoiCalculator() {
 
                   {/* Core metrics */}
                   <div className="mt-4 grid gap-2 text-sm">
-                    <SolutionMetric label="Machine hours / week" value={`${(m.annualMachineHours / 46).toFixed(1)} hrs`} highlight />
+                    <SolutionMetric label="Machine hours / week" value={`${m.weeklyMachineHours.toFixed(1)} hrs`} highlight />
 
                     <SolutionMetric
                       label="Payback period"
