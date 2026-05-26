@@ -47,11 +47,10 @@ function calcSolution(
   const effectiveOperators = s.operators;
   const totalInvestment = s.investmentEur;
 
-  const rawDailyHours = products.reduce((sum, p) => {
-    return sum + (((p.unitsPerWeek) / 5) * (s.processingTimeSec[p.id] ?? 0)) / 3600;
+  const rawWeeklyHours = products.reduce((sum, p) => {
+    return sum + (p.unitsPerWeek * (s.processingTimeSec[p.id] ?? 0)) / 3600;
   }, 0);
-  const dailyMachineHours = rawDailyHours / (oee / 100);
-  const weeklyMachineHours = dailyMachineHours * 5;
+  const weeklyMachineHours = rawWeeklyHours / (oee / 100);
   const availableWeeklyHours = SHIFT_WEEKLY_HOURS[availableShifts];
   const capacityUtilPct = (weeklyMachineHours / availableWeeklyHours) * 100;
 
@@ -249,13 +248,13 @@ function buildHtml(data: {
     // Per-produkt cyklustider
     const cycleRows = data.products.map((p) => {
       const sec = s.processingTimeSec[p.id] ?? 0;
-      const rawDaily = ((p.unitsPerWeek / 5) * sec) / 3600;
-      const machDaily = rawDaily / (m.oee / 100);
+      const rawWeeklyP = (p.unitsPerWeek * sec) / 3600;
+      const machWeeklyP = rawWeeklyP / (m.oee / 100);
       return `<tr>
         <td style="font-size:12px;color:#444;padding:2px 8px 2px 16px;">${e(p.id)}</td>
         <td style="font-size:12px;color:#666;padding:2px 8px;text-align:right;">${sec} sek</td>
         <td style="font-size:12px;color:#666;padding:2px 8px;text-align:right;">${p.unitsPerWeek.toLocaleString("da-DK")} stk/uge</td>
-        <td style="font-size:12px;color:#666;padding:2px 0;text-align:right;">${fmtNum(machDaily, 2)} t/dag</td>
+        <td style="font-size:12px;color:#666;padding:2px 0;text-align:right;">${fmtNum(machWeeklyP, 2)} t/uge</td>
       </tr>`;
     }).join("");
 
@@ -296,7 +295,7 @@ function buildHtml(data: {
               <th style="font-size:11px;color:#aaa;padding:2px 8px 2px 16px;text-align:left;">Produkt</th>
               <th style="font-size:11px;color:#aaa;padding:2px 8px;text-align:right;">Cyklus</th>
               <th style="font-size:11px;color:#aaa;padding:2px 8px;text-align:right;">Antal/uge</th>
-              <th style="font-size:11px;color:#aaa;padding:2px 0;text-align:right;">Maskin-t/dag</th>
+              <th style="font-size:11px;color:#aaa;padding:2px 0;text-align:right;">Maskin-t/uge</th>
             </tr>
             ${cycleRows}
           </table>

@@ -54,12 +54,10 @@ function calcSolution(
   const effectiveOperators = Math.max(0, s.operators - operatorReduction);
   const totalInvestment = s.investmentEur + automationPrice;
 
-  // quantities are per week — divide by 5 to get daily for machine time calc
-  const rawDailyHours = products.reduce((sum, p) => {
-    return sum + (((quantities[p.id] ?? 0) / 5) * (s.processingTimeSec[p.id] ?? 0)) / 3600;
+  const rawWeeklyHours = products.reduce((sum, p) => {
+    return sum + ((quantities[p.id] ?? 0) * (s.processingTimeSec[p.id] ?? 0)) / 3600;
   }, 0);
-  const dailyMachineHours = rawDailyHours / (oee / 100);
-  const weeklyMachineHours = dailyMachineHours * 5;
+  const weeklyMachineHours = rawWeeklyHours / (oee / 100);
   const availableWeeklyHours = SHIFT_WEEKLY_HOURS[availableShifts];
   const capacityUtilPct = (weeklyMachineHours / availableWeeklyHours) * 100;
 
