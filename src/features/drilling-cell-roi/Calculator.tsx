@@ -218,10 +218,11 @@ export function DrillingCellRoiCalculator() {
         id: p.id,
         name: p.name,
         size: p.size,
-        unitsPerDay: quantities[p.id] ?? 0,
+        unitsPerWeek: quantities[p.id] ?? 0,
       })),
       operatorHoursPerWeek,
       availableShifts,
+      country,
       selectedSolution: selectedSolutionName
         ? {
             name: selectedSolutionName,

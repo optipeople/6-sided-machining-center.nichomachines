@@ -13,12 +13,14 @@ export const SubmissionSchema = z.object({
         id: z.string().min(1).max(40),
         name: z.string().max(80),
         size: z.string().max(80),
-        unitsPerDay: z.number().min(0).max(1_000_000),
+        unitsPerWeek: z.number().min(0).max(1_000_000),
       }),
     )
     .min(1)
     .max(50),
-  operators: z.number().min(0).max(1000),
+  operatorHoursPerWeek: z.number().min(0).max(10_000),
+  availableShifts: z.union([z.literal(1), z.literal(2), z.literal(3)]),
+  country: z.string().min(2).max(2),
   selectedSolution: z
     .object({
       name: z.string().min(1).max(160),
