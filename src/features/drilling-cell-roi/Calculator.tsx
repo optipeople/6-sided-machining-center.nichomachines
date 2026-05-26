@@ -697,7 +697,7 @@ export function DrillingCellRoiCalculator() {
 
                   {/* Core metrics */}
                   <div className="mt-4 grid gap-2 text-sm">
-                    <SolutionMetric label="Machine hours / year" value={`${Math.round(m.annualMachineHours).toLocaleString("en")} hrs`} highlight />
+                    <SolutionMetric label="Machine hours / week" value={`${(m.annualMachineHours / 46).toFixed(1)} hrs`} highlight />
 
                     <SolutionMetric
                       label="Payback period"
