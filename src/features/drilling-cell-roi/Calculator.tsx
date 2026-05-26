@@ -160,8 +160,8 @@ export function DrillingCellRoiCalculator() {
       if (!Number.isFinite(b.m.paybackYears)) return -1;
       return a.m.paybackYears - b.m.paybackYears;
     });
-    // Growth: highest capacity utilisation within available shifts
-    const byUtilDesc = [...pool].sort((a, b) => b.m.capacityUtilPct - a.m.capacityUtilPct);
+    // Growth: most spare capacity within available shifts (lowest utilisation = most room to grow)
+    const byUtilDesc = [...pool].sort((a, b) => a.m.capacityUtilPct - b.m.capacityUtilPct);
 
     const conservative = byInvestment[0];
     const bestFit = byPayback[0];
