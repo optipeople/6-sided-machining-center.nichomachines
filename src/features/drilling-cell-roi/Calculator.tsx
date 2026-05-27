@@ -330,12 +330,12 @@ export function DrillingCellRoiCalculator() {
             <IntroCard
               phase="Phase 1"
               title="Production Data"
-              desc="Select your products, then enter daily unit volumes and operator count."
+              desc="Select the panels you currently drill manually, then enter your weekly volumes and the total operator hours spent on drilling today."
             />
             <IntroCard
               phase="Phase 2"
               title="Your Results"
-              desc="Our team prepares a personalised ROI calculation and emails it to you."
+              desc="You'll see your matched machine options with estimated payback period. Our team will then send you a personalised proposal."
             />
           </div>
 
@@ -358,7 +358,7 @@ export function DrillingCellRoiCalculator() {
               Select the products you <em className="not-italic text-[var(--color-tan-500)]">manufacture</em>
             </>
           }
-          description="Pick the panel types your facility produces. Sizes shown are typical reference dimensions."
+          description="Tick all the panel types you currently drill manually. If unsure, start with all selected and remove any that don't apply."
         >
           <div className="mb-4 flex flex-wrap items-center gap-2">
             <SmallButton onClick={() => setAll(true)}>Select all</SmallButton>
@@ -429,10 +429,10 @@ export function DrillingCellRoiCalculator() {
           eyebrow="Step 2 of 4 — Production"
           title={
             <>
-              How many units and <em className="not-italic text-[var(--color-tan-500)]">operators?</em>
+              Your weekly volumes and <em className="not-italic text-[var(--color-tan-500)]">operator hours</em>
             </>
           }
-          description="Enter daily unit volumes for your selected products and how many operators handle the work today."
+          description="Enter how many of each panel you drill per week. Then enter the total hours your operators spend on manual drilling — add them all up across all operators."
         >
           {activeProducts.length === 0 ? (
             <p className="rounded-md border border-[var(--color-paper-dark)] bg-[var(--color-paper)] p-4 text-sm text-[var(--color-ink-500)]">
@@ -532,7 +532,7 @@ export function DrillingCellRoiCalculator() {
 
           <FieldRow
             label="Operator hours per week"
-            hint="Total hours per week spent on drilling operations today, across all operators."
+            hint="Add up all manual drilling hours across all operators. Example: 2 operators × 4 hrs/day × 5 days = 40 hrs/week."
             unit="hrs / week"
           >
             <NumberInput
@@ -562,7 +562,7 @@ export function DrillingCellRoiCalculator() {
 
           <FieldRow
             label="Available shifts"
-            hint="How many production shifts per day can a future machine run?"
+            hint="How many shifts per day could the machine run? 1 shift = ~37 hrs/week. More shifts = more capacity and faster payback."
           >
             <div className="flex overflow-hidden rounded-md border border-[var(--color-paper-dark)]">
               {([1, 2, 3] as const).map((s) => (
@@ -626,7 +626,7 @@ export function DrillingCellRoiCalculator() {
               Choose the <em className="not-italic text-[var(--color-tan-500)]">right solution</em>
             </>
           }
-          description="Based on your production data, we have matched three solution proposals. Select the one that fits best."
+          description="Based on your data we have matched up to three solutions. Each has a label that explains why it was suggested — click a card to select it, then continue to request your proposal."
         >
           {/* Data summary */}
           <div className="mb-6 rounded-lg border border-[var(--color-paper-dark)] bg-[var(--color-paper)] p-4">
@@ -651,6 +651,15 @@ export function DrillingCellRoiCalculator() {
                 <p className="text-sm font-semibold text-[var(--color-ink-900)]">{availableShifts}</p>
               </div>
             </div>
+          </div>
+
+          {/* Label legend */}
+          <div className="mb-4 flex flex-wrap gap-3 text-xs text-[var(--color-slate-500)]">
+            <span><span className="font-semibold text-[var(--color-ink-900)]">Conservative</span> = lowest investment</span>
+            <span>·</span>
+            <span><span className="font-semibold text-[var(--color-ink-900)]">Best fit</span> = fastest payback</span>
+            <span>·</span>
+            <span><span className="font-semibold text-[var(--color-ink-900)]">Growth</span> = most spare capacity</span>
           </div>
 
           {/* Solution cards */}
@@ -745,7 +754,7 @@ export function DrillingCellRoiCalculator() {
               Let&apos;s turn this into a <em className="not-italic text-[var(--color-tan-500)]">real proposal</em>
             </>
           }
-          description="Share your details and a Nicholaisen specialist will reach out to walk you through the right solution, clarify the investment, and prepare a priced offer tailored to your production."
+          description="No commitment required. Fill in your details and a Nicholaisen specialist will send you the full calculation and reach out to answer any questions."
         >
           <form onSubmit={handleSubmit} noValidate className="grid gap-4">
             <TextField
