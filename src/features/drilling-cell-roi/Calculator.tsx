@@ -8,7 +8,7 @@ import {
   useState,
   type FormEvent,
 } from "react";
-import { ArrowLeft, ArrowRight, Check, Loader2 } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, Info, Loader2 } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { PRODUCTS, type DrillingProduct } from "./products";
 import { SOLUTIONS, type SolutionVariant } from "./solutions";
@@ -468,9 +468,10 @@ export function DrillingCellRoiCalculator() {
                     <div className="mt-3 flex items-center justify-between gap-3 border-t border-[var(--color-paper-dark)] pt-3">
                       <label
                         htmlFor={`qty-${p.id}`}
-                        className="text-eyebrow text-[var(--color-slate-500)]"
+                        className="inline-flex items-center gap-1 text-eyebrow text-[var(--color-slate-500)]"
                       >
                         Units / week
+                        <InfoTooltip text="How many pieces of this panel type do you drill in a typical week? If you think in daily numbers, multiply by 5." />
                       </label>
                       <NumberInput
                         id={`qty-${p.id}`}
@@ -492,7 +493,12 @@ export function DrillingCellRoiCalculator() {
                       <th className="w-[110px] pb-3" />
                       <th className="pb-3 text-eyebrow">Product</th>
                       <th className="pb-3 text-eyebrow">Size</th>
-                      <th className="pb-3 text-right text-eyebrow">Units / week</th>
+                      <th className="pb-3 text-right text-eyebrow">
+                        <span className="inline-flex items-center justify-end gap-1">
+                          Units / week
+                          <InfoTooltip text="How many pieces of this panel type do you drill in a typical week? If you think in daily numbers, multiply by 5." />
+                        </span>
+                      </th>
                     </tr>
                   </thead>
                   <tbody>
@@ -534,6 +540,7 @@ export function DrillingCellRoiCalculator() {
             label="Current drilling hours per week (all operators)"
             hint="Add up all drilling hours across all operators. Example: 2 operators × 4 hrs/day × 5 days = 40 hrs/week."
             unit="hrs / week"
+            tooltip="This is the total time your team currently spends on manual drilling each week — across all operators combined. Example: if 2 people each drill 4 hrs/day × 5 days, that is 40 hrs/week."
           >
             <NumberInput
               value={operatorHoursPerWeek}
@@ -548,6 +555,7 @@ export function DrillingCellRoiCalculator() {
           <FieldRow
             label="Country"
             hint="Used to estimate local labour cost in the business case."
+            tooltip="We use the average manufacturing wage in your country to estimate how much your current drilling labour costs per year — and how much a machine could save you."
           >
             <select
               value={country}
@@ -563,6 +571,7 @@ export function DrillingCellRoiCalculator() {
           <FieldRow
             label="Available shifts"
             hint="How many shifts per day could the machine run?"
+            tooltip="1 shift ≈ 37 hrs/week. 2 shifts ≈ 71 hrs/week. 3 shifts ≈ 101 hrs/week. More shifts means more machine capacity and typically a faster payback period."
           >
             <div className="flex overflow-hidden rounded-md border border-[var(--color-paper-dark)]">
               {([1, 2, 3] as const).map((s) => (
@@ -938,21 +947,55 @@ function IntroCard({ phase, title, desc }: { phase: string; title: string; desc:
   );
 }
 
+function InfoTooltip({ text }: { text: string }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <span className="relative inline-flex items-center">
+      <button
+        type="button"
+        onMouseEnter={() => setOpen(true)}
+        onMouseLeave={() => setOpen(false)}
+        onFocus={() => setOpen(true)}
+        onBlur={() => setOpen(false)}
+        onClick={() => setOpen((v) => !v)}
+        aria-label="More information"
+        className="inline-flex items-center justify-center rounded-full text-[var(--color-slate-500)] transition-colors hover:text-[var(--color-ink-900)]"
+      >
+        <Info className="size-3.5" />
+      </button>
+      {open && (
+        <span
+          role="tooltip"
+          className="absolute bottom-full left-0 z-20 mb-2 w-60 rounded-lg bg-[var(--color-ink-900)] px-3 py-2.5 text-xs leading-relaxed text-[var(--color-cream-50)] shadow-xl"
+        >
+          {text}
+          <span className="absolute left-2 top-full border-4 border-transparent border-t-[var(--color-ink-900)]" />
+        </span>
+      )}
+    </span>
+  );
+}
+
 function FieldRow({
   label,
   hint,
   unit,
+  tooltip,
   children,
 }: {
   label: string;
   hint?: string;
   unit?: string;
+  tooltip?: string;
   children: React.ReactNode;
 }) {
   return (
     <div className="mt-4 flex flex-wrap items-center justify-between gap-4 rounded-lg border border-[var(--color-paper-dark)] bg-[var(--color-paper)] p-5 focus-within:border-[var(--color-navy-900)]">
       <div className="min-w-0 flex-1">
-        <div className="text-sm font-semibold text-[var(--color-ink-900)]">{label}</div>
+        <div className="flex items-center gap-1.5 text-sm font-semibold text-[var(--color-ink-900)]">
+          {label}
+          {tooltip && <InfoTooltip text={tooltip} />}
+        </div>
         {hint ? <div className="mt-0.5 text-xs text-[var(--color-slate-500)]">{hint}</div> : null}
       </div>
       <div className="flex items-center gap-2">
