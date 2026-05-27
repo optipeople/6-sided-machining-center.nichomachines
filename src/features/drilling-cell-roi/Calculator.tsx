@@ -78,10 +78,7 @@ export function DrillingCellRoiCalculator() {
   const [step, setStep] = useState<Step>(0);
   const [selected, setSelected] = useState<Set<string>>(() => new Set());
   const [quantities, setQuantities] = useState<Record<string, number>>({});
-  const [numOperators, setNumOperators] = useState<number>(2);
-  const [hoursPerOpPerDay, setHoursPerOpPerDay] = useState<number>(4);
-  const [qtyMode, setQtyMode] = useState<"day" | "week">("day");
-  const operatorHoursPerWeek = numOperators * hoursPerOpPerDay * 5;
+  const [operatorHoursPerWeek, setOperatorHoursPerWeek] = useState<number>(40);
   const [contact, setContact] = useState<Contact>({
     name: "",
     email: "",
@@ -256,9 +253,7 @@ export function DrillingCellRoiCalculator() {
   const resetForm = () => {
     setAll(true);
     setQuantities({});
-    setNumOperators(2);
-    setHoursPerOpPerDay(4);
-    setQtyMode("day");
+    setOperatorHoursPerWeek(40);
     setCountry("DK");
     setAvailableShifts(1);
     setContact({ name: "", email: "", job: "", company: "" });
@@ -434,10 +429,10 @@ export function DrillingCellRoiCalculator() {
           eyebrow="Step 2 of 4 — Production"
           title={
             <>
-              Your production volumes and <em className="not-italic text-[var(--color-tan-500)]">operator time</em>
+              Your weekly volumes and <em className="not-italic text-[var(--color-tan-500)]">operator hours</em>
             </>
           }
-          description="Enter how many panels you drill each day. Then tell us how many operators do this work and how many hours each spends per day — we'll calculate the weekly total."
+          description="Enter how many of each panel you drill per week. Then enter the total hours your operators spend on manual drilling — add them all up across all operators."
         >
           {activeProducts.length === 0 ? (
             <p className="rounded-md border border-[var(--color-paper-dark)] bg-[var(--color-paper)] p-4 text-sm text-[var(--color-ink-500)]">
@@ -445,31 +440,6 @@ export function DrillingCellRoiCalculator() {
             </p>
           ) : (
             <>
-              {/* Day / week toggle */}
-              <div className="mb-4 flex items-center gap-3">
-                <span className="text-xs font-semibold uppercase tracking-wider text-[var(--color-slate-500)]">
-                  Volumes per
-                </span>
-                <div className="flex overflow-hidden rounded border border-[var(--color-paper-dark)]">
-                  {(["day", "week"] as const).map((mode) => (
-                    <button
-                      key={mode}
-                      type="button"
-                      onClick={() => setQtyMode(mode)}
-                      className={cn(
-                        "px-3 py-1.5 text-xs font-semibold transition-colors",
-                        mode === "week" && "border-l border-[var(--color-paper-dark)]",
-                        qtyMode === mode
-                          ? "bg-[var(--color-navy-900)] text-[var(--color-cream-50)]"
-                          : "bg-[var(--color-paper)] text-[var(--color-ink-900)] hover:bg-[var(--color-paper-dark)]",
-                      )}
-                    >
-                      {mode === "day" ? "Day" : "Week"}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
               {/* Mobile: card list */}
               <ul className="grid gap-3 sm:hidden">
                 {activeProducts.map((p) => (
@@ -500,13 +470,13 @@ export function DrillingCellRoiCalculator() {
                         htmlFor={`qty-${p.id}`}
                         className="text-eyebrow text-[var(--color-slate-500)]"
                       >
-                        {qtyMode === "day" ? "Units / day" : "Units / week"}
+                        Units / week
                       </label>
                       <NumberInput
                         id={`qty-${p.id}`}
-                        value={qtyMode === "day" ? Math.round((quantities[p.id] ?? 0) / 5) : (quantities[p.id] ?? 0)}
+                        value={quantities[p.id] ?? 0}
                         min={0}
-                        onChange={(v) => updateQty(p.id, qtyMode === "day" ? v * 5 : v)}
+                        onChange={(v) => updateQty(p.id, v)}
                         className="w-28"
                       />
                     </div>
@@ -522,7 +492,7 @@ export function DrillingCellRoiCalculator() {
                       <th className="w-[110px] pb-3" />
                       <th className="pb-3 text-eyebrow">Product</th>
                       <th className="pb-3 text-eyebrow">Size</th>
-                      <th className="pb-3 text-right text-eyebrow">{qtyMode === "day" ? "Units / day" : "Units / week"}</th>
+                      <th className="pb-3 text-right text-eyebrow">Units / week</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -546,9 +516,9 @@ export function DrillingCellRoiCalculator() {
                         </td>
                         <td className="py-3 text-right">
                           <NumberInput
-                            value={qtyMode === "day" ? Math.round((quantities[p.id] ?? 0) / 5) : (quantities[p.id] ?? 0)}
+                            value={quantities[p.id] ?? 0}
                             min={0}
-                            onChange={(v) => updateQty(p.id, qtyMode === "day" ? v * 5 : v)}
+                            onChange={(v) => updateQty(p.id, v)}
                             className="w-28"
                           />
                         </td>
@@ -560,44 +530,20 @@ export function DrillingCellRoiCalculator() {
             </>
           )}
 
-          <div className="mt-4 rounded-lg border border-[var(--color-paper-dark)] bg-[var(--color-paper)] p-5">
-            <div className="text-sm font-semibold text-[var(--color-ink-900)]">Operator drilling time</div>
-            <div className="mt-0.5 text-xs text-[var(--color-slate-500)]">
-              How many operators drill today, and how many hours per day does each spend on it?
-            </div>
-            <div className="mt-4 grid grid-cols-2 gap-4">
-              <div>
-                <label className="text-xs font-semibold uppercase tracking-wider text-[var(--color-slate-500)]">
-                  No. of operators
-                </label>
-                <NumberInput
-                  value={numOperators}
-                  min={1}
-                  max={99}
-                  onChange={setNumOperators}
-                  className="mt-2 w-full"
-                />
-              </div>
-              <div>
-                <label className="text-xs font-semibold uppercase tracking-wider text-[var(--color-slate-500)]">
-                  Hrs / operator / day
-                </label>
-                <NumberInput
-                  value={hoursPerOpPerDay}
-                  min={0}
-                  max={24}
-                  step={0.5}
-                  onChange={setHoursPerOpPerDay}
-                  className="mt-2 w-full"
-                />
-              </div>
-            </div>
-            <div className="mt-3 rounded-md bg-[var(--color-paper-dark)]/40 px-3 py-2 text-sm">
-              <span className="text-[var(--color-slate-500)]">Total: </span>
-              <span className="font-semibold text-[var(--color-ink-900)]">{operatorHoursPerWeek} hrs/week</span>
-              <span className="text-[var(--color-slate-500)]"> ({numOperators} op × {hoursPerOpPerDay} hrs × 5 days)</span>
-            </div>
-          </div>
+          <FieldRow
+            label="Current drilling hours per week (all operators)"
+            hint="Add up all drilling hours across all operators. Example: 2 operators × 4 hrs/day × 5 days = 40 hrs/week."
+            unit="hrs / week"
+          >
+            <NumberInput
+              value={operatorHoursPerWeek}
+              min={0}
+              max={10000}
+              step={0.5}
+              onChange={setOperatorHoursPerWeek}
+              className="w-28"
+            />
+          </FieldRow>
 
           <FieldRow
             label="Country"
@@ -663,7 +609,7 @@ export function DrillingCellRoiCalculator() {
                 : totalUnitsPerWeek <= 0
                   ? "Enter at least one unit per week"
                   : operatorHoursPerWeek <= 0
-                    ? "Enter operator count and hours per day"
+                    ? "Enter operator hours per week"
                     : undefined
             }
           />
@@ -697,7 +643,7 @@ export function DrillingCellRoiCalculator() {
                 </p>
               </div>
               <div>
-                <p className="text-xs text-[var(--color-slate-500)]">Drilling hrs / week</p>
+                <p className="text-xs text-[var(--color-slate-500)]">Operator hrs / week</p>
                 <p className="text-sm font-semibold text-[var(--color-ink-900)]">{operatorHoursPerWeek.toLocaleString("en")}</p>
               </div>
               <div>
@@ -762,11 +708,8 @@ export function DrillingCellRoiCalculator() {
 
                   {/* Core metrics */}
                   <div className="mt-4 grid gap-2 text-sm">
-                    <SolutionMetric
-                      label="You save / year"
-                      value={m.annualSavingsEur > 0 ? `€${Math.round(m.annualSavingsEur).toLocaleString("en")}` : "Contact us"}
-                      highlight
-                    />
+                    <SolutionMetric label="Machine hours / week" value={`${m.weeklyMachineHours.toFixed(1)} hrs`} highlight />
+
                     <SolutionMetric
                       label="Payback period"
                       value={Number.isFinite(m.paybackYears) ? `~ ${m.paybackYears.toFixed(1)} yrs` : "Contact us"}
