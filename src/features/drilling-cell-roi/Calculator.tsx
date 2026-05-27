@@ -531,7 +531,7 @@ export function DrillingCellRoiCalculator() {
           )}
 
           <FieldRow
-            label="Operator hours per week"
+            label="Current drilling hours per week (all operators)"
             hint="Add up all drilling hours across all operators. Example: 2 operators × 4 hrs/day × 5 days = 40 hrs/week."
             unit="hrs / week"
           >
