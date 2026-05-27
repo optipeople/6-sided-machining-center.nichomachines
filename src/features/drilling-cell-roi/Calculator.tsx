@@ -571,7 +571,7 @@ export function DrillingCellRoiCalculator() {
           <FieldRow
             label="Available shifts"
             hint="How many shifts per day could the machine run?"
-            tooltip="Choose how many shifts per day the machine would be allowed to run. This is the total time available to process the panel volumes you entered — more shifts means more capacity and a higher chance the machine can keep up with your production."
+            tooltip="Choose how many shifts per day the machine would be allowed to run. This is the total time available to process the panel volumes you entered."
           >
             <div className="flex overflow-hidden rounded-md border border-[var(--color-paper-dark)]">
               {([1, 2, 3] as const).map((s) => (
