@@ -562,7 +562,7 @@ export function DrillingCellRoiCalculator() {
 
           <FieldRow
             label="Available shifts"
-            hint="How many shifts per day could the machine run? 1 shift = ~37 hrs/week. More shifts = more capacity and faster payback."
+            hint="How many shifts per day could the machine run?"
           >
             <div className="flex overflow-hidden rounded-md border border-[var(--color-paper-dark)]">
               {([1, 2, 3] as const).map((s) => (
