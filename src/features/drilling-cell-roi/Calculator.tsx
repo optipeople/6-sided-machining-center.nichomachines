@@ -733,11 +733,6 @@ export function DrillingCellRoiCalculator() {
                   <div className="mt-4 grid gap-2 text-sm">
                     <SolutionMetric label="Machine hours / week" value={`${m.weeklyMachineHours.toFixed(1)} hrs`} highlight />
                     <SolutionMetric
-                      label="Annual savings"
-                      value={m.annualSavingsEur > 0 ? fmtCurrency(m.annualSavingsEur, selectedCountry.eurToLocal, selectedCountry.currency) : "Contact us"}
-                      highlight
-                    />
-                    <SolutionMetric
                       label="Payback period"
                       value={Number.isFinite(m.paybackYears) ? `~ ${m.paybackYears.toFixed(1)} yrs` : "Contact us"}
                       highlight
