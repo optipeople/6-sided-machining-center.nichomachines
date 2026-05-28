@@ -752,6 +752,13 @@ export function DrillingCellRoiCalculator() {
                     />
                   </div>
 
+                  {/* Long payback CTA */}
+                  {Number.isFinite(m.paybackYears) && m.paybackYears > 5 && (
+                    <div className="mt-3 rounded-md border border-[var(--color-tan-500)]/30 bg-[var(--color-tan-500)]/8 px-3 py-2.5 text-xs leading-relaxed text-[var(--color-ink-700)]">
+                      Payback exceeds 5 years — reach out to us and we'll look at how we can tailor the solution to better fit your volumes and budget.
+                    </div>
+                  )}
+
                 </button>
               );
             })}
