@@ -29,6 +29,9 @@ export type SolutionVariant = {
   /** Kort beskrivelse vist i trin 3 — hvad kendetegner løsningen */
   description: string;
 
+  /** Valgfrit billede af maskinen — sti relativt til /public, fx "/solutions/double-machine.png" */
+  image?: string;
+
   /** Forventet OEE i procent (0–100) */
   oeePercent: number;
 
@@ -119,6 +122,7 @@ export const SOLUTIONS: SolutionVariant[] = [
   {
     name: "Double Machine - Double Side Drilling",
     description: "Two parallel double-side drilling units running simultaneously. Manual In/outfeed.",
+    image: "/solutions/double-machine-double-side.png",
     oeePercent: 60,
     operators: 2,
     investmentEur: 140_000,

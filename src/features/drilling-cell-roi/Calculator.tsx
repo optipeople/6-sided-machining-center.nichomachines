@@ -717,6 +717,19 @@ export function DrillingCellRoiCalculator() {
                       <Check className="size-3" />
                     </span>
                   )}
+
+                  {/* Machine image */}
+                  {solution.image ? (
+                    <div className="mb-3 -mx-4 -mt-4 overflow-hidden rounded-t-xl bg-[var(--color-cream-50)]">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={solution.image}
+                        alt={solution.name}
+                        className="h-36 w-full object-contain px-4 py-3"
+                      />
+                    </div>
+                  ) : null}
+
                   <div className="mb-3 flex flex-wrap gap-1">
                     {labels.map(({ label, badge }) => (
                       <span key={label} className={cn("inline-block rounded px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider", badge)}>
