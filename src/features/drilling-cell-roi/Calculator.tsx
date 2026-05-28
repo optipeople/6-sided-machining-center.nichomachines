@@ -20,15 +20,21 @@ const WORKING_DAYS = 220;
 const SHIFT_WEEKLY_HOURS: Record<1 | 2 | 3, number> = { 1: 37, 2: 71, 3: 101 };
 
 const COUNTRIES = [
-  { code: "DK", name: "Denmark",    eurPerHour: 33.5 },
-  { code: "SE", name: "Sweden",     eurPerHour: 30.0 },
-  { code: "NO", name: "Norway",     eurPerHour: 48.0 },
-  { code: "FI", name: "Finland",    eurPerHour: 28.0 },
-  { code: "EE", name: "Estonia",    eurPerHour:  8.5 },
-  { code: "LV", name: "Latvia",     eurPerHour:  6.5 },
-  { code: "LT", name: "Lithuania",  eurPerHour:  7.5 },
+  { code: "DK", name: "Denmark",    eurPerHour: 38,   currency: "DKK", eurToLocal: 7.46 },
+  { code: "SE", name: "Sweden",     eurPerHour: 35,   currency: "SEK", eurToLocal: 11.50 },
+  { code: "NO", name: "Norway",     eurPerHour: 48,   currency: "NOK", eurToLocal: 11.80 },
+  { code: "FI", name: "Finland",    eurPerHour: 35,   currency: "EUR", eurToLocal: 1.0 },
+  { code: "EE", name: "Estonia",    eurPerHour: 20,   currency: "EUR", eurToLocal: 1.0 },
+  { code: "LV", name: "Latvia",     eurPerHour: 20,   currency: "EUR", eurToLocal: 1.0 },
+  { code: "LT", name: "Lithuania",  eurPerHour: 20,   currency: "EUR", eurToLocal: 1.0 },
 ] as const;
 type CountryCode = (typeof COUNTRIES)[number]["code"];
+
+function fmtCurrency(eurAmount: number, eurToLocal: number, currency: string): string {
+  const amount = Math.round(eurAmount * eurToLocal);
+  const formatted = amount.toLocaleString("en");
+  return currency === "EUR" ? `€${formatted}` : `${formatted} ${currency}`;
+}
 
 const SOLUTION_LABELS = [
   { label: "Conservative choice",       badge: "bg-[var(--color-paper-dark)] text-[var(--color-ink-900)]" },
@@ -96,7 +102,8 @@ export function DrillingCellRoiCalculator() {
   const [country, setCountry] = useState<CountryCode>("DK");
   const [availableShifts, setAvailableShifts] = useState<1 | 2 | 3>(1);
 
-  const eurPerHour = COUNTRIES.find((c) => c.code === country)!.eurPerHour;
+  const selectedCountry = COUNTRIES.find((c) => c.code === country)!;
+  const eurPerHour = selectedCountry.eurPerHour;
 
   const topRef = useRef<HTMLDivElement>(null);
   const headingRef = useRef<HTMLHeadingElement>(null);
@@ -555,7 +562,7 @@ export function DrillingCellRoiCalculator() {
           <FieldRow
             label="Country"
             hint="Used to estimate local labour cost in the business case."
-            tooltip="We use the average manufacturing wage in your country to estimate how much your current drilling labour costs per year — and how much a machine could save you."
+            tooltip="We use the average manufacturing wage in your country to estimate labour costs and potential savings — shown in your local currency."
           >
             <select
               value={country}
@@ -605,6 +612,13 @@ export function DrillingCellRoiCalculator() {
             </div>
             <p className="mt-1 text-xs text-[var(--color-slate-500)]">
               {operatorHoursPerWeek.toLocaleString("da-DK")} hrs/week × 46 weeks
+            </p>
+            <p className="mt-2 text-xs text-[var(--color-slate-500)]">
+              ≈{" "}
+              <span className="font-semibold text-[var(--color-ink-900)]">
+                {fmtCurrency(operatorHoursPerWeek * 46 * eurPerHour, selectedCountry.eurToLocal, selectedCountry.currency)}
+              </span>{" "}
+              / year in labour cost
             </p>
           </div>
 
@@ -718,7 +732,11 @@ export function DrillingCellRoiCalculator() {
                   {/* Core metrics */}
                   <div className="mt-4 grid gap-2 text-sm">
                     <SolutionMetric label="Machine hours / week" value={`${m.weeklyMachineHours.toFixed(1)} hrs`} highlight />
-
+                    <SolutionMetric
+                      label="Annual savings"
+                      value={m.annualSavingsEur > 0 ? fmtCurrency(m.annualSavingsEur, selectedCountry.eurToLocal, selectedCountry.currency) : "Contact us"}
+                      highlight
+                    />
                     <SolutionMetric
                       label="Payback period"
                       value={Number.isFinite(m.paybackYears) ? `~ ${m.paybackYears.toFixed(1)} yrs` : "Contact us"}
