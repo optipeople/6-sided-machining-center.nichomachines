@@ -52,6 +52,7 @@ export const SOLUTIONS: SolutionVariant[] = [
   {
     name: "Single Machine - Single Side Drilling",
     description: "A single machine with one drilling unita and manual in/outfeed.",
+    image: "/solutions/Single-Machine-Single-side-drilling.png",
     oeePercent: 60,
     operators: 1,
     investmentEur: 68_000,
