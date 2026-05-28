@@ -158,6 +158,7 @@ export const SOLUTIONS: SolutionVariant[] = [
    {
      name: "Double Machine - Double Side Drilling, Full Automation",
      description: "Two parallel double-side drilling units running simultaneously. With full automized return transportation and robot in/outfeed",
+     image: "/solutions/double-machine-double-side-drilling-Full-Automation.png",
      oeePercent: 80,
      operators: 1,
      investmentEur: 220_000,
